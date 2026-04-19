@@ -1,0 +1,23 @@
+FROM flink:2.2.0-scala_2.12-java21
+
+USER root
+
+RUN apt-get update && apt-get install -y wget tar && \
+    wget https://github.com/async-profiler/async-profiler/releases/download/v4.3/async-profiler-4.3-linux-x64.tar.gz && \
+    tar -xzf async-profiler-4.3-linux-x64.tar.gz && \
+    mv async-profiler-4.3-linux-x64 /opt/async-profiler && \
+    rm async-profiler-4.3-linux-x64.tar.gz
+
+# Permissions
+RUN chmod -R 755 /opt/async-profiler
+
+ADD https://jdbc.postgresql.org/download/postgresql-42.7.3.jar /opt/flink/lib/
+
+# create writable log directory
+RUN mkdir -p /opt/flink/log && \
+    chown -R flink:flink /opt/flink/log
+
+COPY --chown=flink:flink flink-config.yaml /opt/flink/conf/config.yaml
+
+USER flink
+WORKDIR /opt/flink
