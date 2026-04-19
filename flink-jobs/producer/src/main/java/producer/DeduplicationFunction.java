@@ -15,8 +15,6 @@ public class DeduplicationFunction extends KeyedProcessFunction<String, String, 
     @Override
     public void processElement(String value, Context ctx, Collector<String> out) throws Exception {
 
-        System.out.println("RAW: " + value);
-
         if (value == null || value.isEmpty()) {
             return; // skip bad input
         }
@@ -39,8 +37,6 @@ public class DeduplicationFunction extends KeyedProcessFunction<String, String, 
             return;
         }
 
-        System.out.println("NODE: " + node);
-
         String dateTime = node.path("DateTime").asText(null);
         String coordinates = node.path("Coordinates").asText(null);
         String magnitude = node.path("Magnitude").asText(null);
@@ -53,8 +49,6 @@ public class DeduplicationFunction extends KeyedProcessFunction<String, String, 
         String id = dateTime + coordinates + magnitude;
 
         String last = lastId.value();
-
-        System.out.println("ID: " + id);
 
         if (last == null || !last.equals(id)) {
             lastId.update(id);
