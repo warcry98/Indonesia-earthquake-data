@@ -30,31 +30,20 @@ public class DeduplicationFunction extends KeyedProcessFunction<String, String, 
                     .getState(new ValueStateDescriptor<>("lastId", String.class));
         }
 
-        JsonNode root;
+        JsonNode node;
         try {
-            root = mapper.readTree(value);
+            node = mapper.readTree(value);
         } catch (Exception e) {
             System.out.println("JSON PARSE ERROR!");
             e.printStackTrace(); // 🔥 show the real issue
             return;
         }
 
-        System.out.println("ROOT: " + root);
-        System.out.println("Infogempa node: " + root.get("Infogempa"));
+        System.out.println("NODE: " + node);
 
-        JsonNode gempa = root.path("Infogempa").path("gempa");
-
-        System.out.println("GEMPA NODE: " + gempa);
-        System.out.println("DateTime node: " + gempa.get("DateTime"));
-
-        // 🔥 path() never throws NPE (returns missing node instead)
-        if (gempa.isMissingNode()) {
-            return;
-        }
-
-        String dateTime = gempa.path("DateTime").asText(null);
-        String coordinates = gempa.path("Coordinates").asText(null);
-        String magnitude = gempa.path("Magnitude").asText(null);
+        String dateTime = node.path("DateTime").asText(null);
+        String coordinates = node.path("Coordinates").asText(null);
+        String magnitude = node.path("Magnitude").asText(null);
 
         // skip if critical fields missing
         if (dateTime == null || coordinates == null || magnitude == null) {
@@ -70,7 +59,6 @@ public class DeduplicationFunction extends KeyedProcessFunction<String, String, 
         if (last == null || !last.equals(id)) {
             lastId.update(id);
             out.collect(value);
-            return;
         }
     }
 }

@@ -106,22 +106,15 @@ public class KafkaToTimescaleJob {
 					zone = ZoneId.of("Asia/Jakarta");
 				}
 
-				JsonNode root;
+				JsonNode node;
 				try {
-					root = mapper.readTree(json);
+					node = mapper.readTree(json);
 				} catch (Exception e) {
 					// skip invalid JSON
 					return null;
 				}
 
-				JsonNode gempa = root.path("Infogempa").path("gempa");
-
-				// ❌ Missing data
-				if (gempa.isMissingNode()) {
-					return null;
-				}
-
-				String datetime = gempa.path("DateTime").asText(null);
+				String datetime = node.path("DateTime").asText(null);
 
 				// ❌ Missing or invalid DateTime
 				if (datetime == null || datetime.isEmpty()) {
@@ -137,10 +130,10 @@ public class KafkaToTimescaleJob {
 					return null; // skip bad time format
 				}
 
-				e.magnitude = gempa.path("Magnitude").asDouble(0.0);
-				e.depth = gempa.path("Kedalaman").asText("");
+				e.magnitude = node.path("Magnitude").asDouble(0.0);
+				e.depth = node.path("Kedalaman").asText("");
 
-				String coordStr = gempa.path("Coordinates").asText("0,0");
+				String coordStr = node.path("Coordinates").asText("0,0");
 				String[] coord = coordStr.split(",");
 
 				try {
@@ -151,7 +144,7 @@ public class KafkaToTimescaleJob {
 					e.lon = 0.0;
 				}
 
-				e.region = gempa.path("Wilayah").asText("");
+				e.region = node.path("Wilayah").asText("");
 
 				return e;
 			}
@@ -166,7 +159,10 @@ public class KafkaToTimescaleJob {
 		env.execute("Kafka -> TimescaleDB");
 	}
 
-	private static void initDatabase() {
+	private static void initDatabase() throws ClassNotFoundException {
+		// Load driver explicitly
+		Class.forName("org.postgresql.Driver");
+
 		try (Connection conn = DriverManager.getConnection(
 				"jdbc:postgresql://timescaledb:5432/postgres",
 				"postgres",
@@ -174,12 +170,9 @@ public class KafkaToTimescaleJob {
 		);
 			 Statement stmt = conn.createStatement()) {
 
-			// Load driver explicitly
-			Class.forName("org.postgresql.Driver");
-
 			stmt.execute("""
             CREATE TABLE IF NOT EXISTS earthquakes (
-                time timestamp with time zone,,
+                time timestamp with time zone,
                 magnitude DOUBLE PRECISION,
                 depth TEXT,
                 lat DOUBLE PRECISION,
@@ -204,7 +197,7 @@ public class KafkaToTimescaleJob {
         """);
 
 			System.out.println("✅ TimescaleDB initialized");
-        } catch (SQLException | ClassNotFoundException e) {
+        } catch (SQLException e) {
             throw new RuntimeException("DB init failed", e);
         }
     }
