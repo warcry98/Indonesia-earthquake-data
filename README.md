@@ -1,6 +1,7 @@
 # 🌏 Indonesia Earthquake Streaming Pipeline
 
 ## 🚀 Overview
+Tested running in Ubuntu environment
 
 Production-ready real-time data pipeline using: - Apache Flink 2.2.0 -
 Redpanda (Kafka) - TimescaleDB - Metabase (auto dashboards) - Nginx
