@@ -29,6 +29,8 @@ public class PostgresSink implements Sink<BmkgEvent> {
 
         public PostgresSinkWriter() {
             try {
+                Class.forName("org.postgresql.Driver"); // 🔥 FORCE REGISTER
+
                 conn = DriverManager.getConnection(
                         "jdbc:postgresql://timescaledb:5432/postgres",
                         "postgres",

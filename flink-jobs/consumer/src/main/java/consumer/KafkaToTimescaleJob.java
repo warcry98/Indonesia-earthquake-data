@@ -24,17 +24,23 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
+import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
+import org.apache.flink.connector.jdbc.core.datastream.sink.JdbcSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 
 /**
  * Skeleton for a Flink DataStream Job.
@@ -54,6 +60,7 @@ public class KafkaToTimescaleJob {
 	public static void main(String[] args) throws Exception {
 		final String bootstrapServers = args.length > 0 ? args[0] : "redpanda:29092";
 
+		initDatabase();
 		// Sets up the execution environment, which is the main entry point
 		// to building Flink applications.
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -63,8 +70,8 @@ public class KafkaToTimescaleJob {
 		KafkaSource<String> source = KafkaSource.<String>builder()
 				.setBootstrapServers(bootstrapServers)
 				.setTopics(kafkaTopic)
-				.setGroupId("bmkg-group")
-				.setStartingOffsets(OffsetsInitializer.latest())
+				.setGroupId("bmkg-group-v2")
+				.setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
 				.setValueOnlyDeserializer(new SimpleStringSchema())
 				.build();
 
@@ -151,9 +158,54 @@ public class KafkaToTimescaleJob {
 		});
 
 		parsed
-				.filter(e -> e != null)
-				.sinkTo(new PostgresSink());
+				.filter(Objects::nonNull)
+				.sinkTo(
+						new PostgresSink()
+				);
 
 		env.execute("Kafka -> TimescaleDB");
 	}
+
+	private static void initDatabase() {
+		try (Connection conn = DriverManager.getConnection(
+				"jdbc:postgresql://timescaledb:5432/postgres",
+				"postgres",
+				"postgres"
+		);
+			 Statement stmt = conn.createStatement()) {
+
+			// Load driver explicitly
+			Class.forName("org.postgresql.Driver");
+
+			stmt.execute("""
+            CREATE TABLE IF NOT EXISTS earthquakes (
+                time timestamp with time zone,,
+                magnitude DOUBLE PRECISION,
+                depth TEXT,
+                lat DOUBLE PRECISION,
+                lon DOUBLE PRECISION,
+                region TEXT,
+                PRIMARY KEY (time, magnitude, lat, lon)
+            );
+        """);
+
+			stmt.execute("""
+            SELECT create_hypertable('earthquakes', 'time', if_not_exists => TRUE);
+        """);
+
+			stmt.execute("""
+            DO $$
+                BEGIN
+                	PERFORM add_retention_policy('earthquakes', interval '6 months');
+                EXCEPTION
+                    WHEN others THEN
+                        NULL;
+                END $$;
+        """);
+
+			System.out.println("✅ TimescaleDB initialized");
+        } catch (SQLException | ClassNotFoundException e) {
+            throw new RuntimeException("DB init failed", e);
+        }
+    }
 }
