@@ -21,7 +21,7 @@ public class BmkgSourceReader implements SourceReader<String, BmkgSplit> {
 
     private volatile boolean running = true;
 
-    private static final String URL = "https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json";
+    private static final String URL = "https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json";
 
     public BmkgSourceReader(SourceReaderContext context) {
         this.context = context;

@@ -18,6 +18,8 @@
 
 package producer;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
@@ -26,6 +28,7 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -63,16 +66,38 @@ public class BmkgToKafkaJob {
 
 		env.enableCheckpointing(1000);
 
-		DataStream<String> stream = env.fromSource(
+		DataStream<String> raw = env.fromSource(
 				new BmkgSource(),
 				WatermarkStrategy.noWatermarks(),
 				"bmkg-source"
 		).setParallelism(1);
 
-//		DataStream<String> deduplicated = stream;
+		// Split JSON -> multiple gempa
+		DataStream<String> flattened = raw
+				.flatMap((String json, Collector<String> out) -> {
 
-		DataStream<String> deduplicated = stream
-				.keyBy(value -> "bmkg")
+					ObjectMapper mapper =
+							new ObjectMapper();
+
+					JsonNode root = mapper.readTree(json);
+					JsonNode gempaNode =
+							root.path("Infogempa").path("gempa");
+
+					if (gempaNode.isArray()) {
+						// NEW endpoint (gempadirasakan.json)
+						for (JsonNode g : gempaNode) {
+							out.collect(mapper.writeValueAsString(g));
+						}
+					} else if (gempaNode.isObject()) {
+						// OLD endpoint (autogempa.json)
+						out.collect(mapper.writeValueAsString(gempaNode));
+					}
+
+				})
+				.returns(String.class);
+
+		DataStream<String> deduplicated = flattened
+				.keyBy(BmkgToKafkaJob::extractKey)
 				.process(new DeduplicationFunction());
 
 		KafkaSink<String> sink = KafkaSink.<String>builder()
@@ -117,5 +142,18 @@ public class BmkgToKafkaJob {
 				System.out.println("Topic already exists: " + topicName);
 			}
 		}
+	}
+
+	private static String extractKey(String json) throws Exception {
+		ObjectMapper mapper = new ObjectMapper();
+
+		JsonNode node = mapper.readTree(json);
+
+		String tanggal = node.path("Tanggal").asText();
+		String jam = node.path("Jam").asText();
+		String lat = node.path("Lintang").asText();
+		String lon = node.path("Bujur").asText();
+
+		return tanggal + "_" + jam + "_" + lat + "_" + lon;
 	}
 }
