@@ -59,7 +59,7 @@ make all
 ## 📦 Database Schema
 
 ``` sql
-CREATE TABLE IF NOT EXISTS earthquakes (
+CREATE TABLE IF NOT E→ Metabase (via Nginx)XISTS earthquakes (
     time timestamp with time zone,
     magnitude DOUBLE PRECISION,
     depth TEXT,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS earthquakes (
     PRIMARY KEY (time, magnitude, lat, lon)
 );
 
-SELECT create_hypertable('earthquakes', 'time', if_not_exists => TRUE);
+SELECT create_hyperta→ Metabase (via Nginx)ble('earthquakes', 'time', if_not_exists => TRUE);
 
 DO $$
     BEGIN
