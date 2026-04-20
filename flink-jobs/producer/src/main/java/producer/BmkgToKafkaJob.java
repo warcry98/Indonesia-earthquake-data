@@ -100,8 +100,11 @@ public class BmkgToKafkaJob {
 				.keyBy(BmkgToKafkaJob::extractKey)
 				.process(new DeduplicationFunction());
 
+		Properties properties = kafkaProperties();
+
 		KafkaSink<String> sink = KafkaSink.<String>builder()
 				.setBootstrapServers(bootstrapServers)
+				.setKafkaProducerConfig(kafkaProperties())
 				.setRecordSerializer(
 						KafkaRecordSerializationSchema.builder()
 								.setTopic(kafkaTopic)
@@ -123,8 +126,7 @@ public class BmkgToKafkaJob {
 			short replicationFactor
 	) throws ExecutionException, InterruptedException {
 
-		Properties props = new Properties();
-		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+		Properties props = kafkaProperties();
 
 		try (AdminClient adminClient = AdminClient.create(props)) {
 
@@ -155,5 +157,20 @@ public class BmkgToKafkaJob {
 		String lon = node.path("Bujur").asText();
 
 		return tanggal + "_" + jam + "_" + lat + "_" + lon;
+	}
+
+	private static Properties kafkaProperties() {
+		Properties properties = new Properties();
+		properties.setProperty("bootstrap.server", "redpanda:29092");
+
+		properties.setProperty("security.protocol", "SASL_SSL");
+		properties.setProperty("sasl.mechanism", "SCRAM-SHA-256");
+
+		String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required " +
+				"username=\"admin\" " +
+				"password=\"secret\";";
+		properties.setProperty("sasl.jaas.config", jaasConfig);
+
+		return properties;
 	}
 }
