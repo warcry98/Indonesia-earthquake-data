@@ -162,7 +162,7 @@ services:
       - .env
     depends_on:
       - jobmanager
-      - metabase
+      - redpanda
 
 volumes:
   flink-logs:
