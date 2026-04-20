@@ -177,14 +177,14 @@ services:
       - taskmanager
 
   nginx:
-  build: ./nginx
-  ports:
-    - "8082:80"
-  env_file:
-    - .env
-  depends_on:
-    - jobmanager
-    - metabase
+    build: ./nginx
+    ports:
+      - "8082:80"
+    env_file:
+      - .env
+    depends_on:
+      - jobmanager
+      - metabase
 
 volumes:
   flink-logs:
