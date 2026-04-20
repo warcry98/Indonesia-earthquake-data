@@ -32,3 +32,7 @@ clean:
 # Logs
 logs:
 	docker compose logs -f
+
+# .env file
+env:
+	cp .env.example .env

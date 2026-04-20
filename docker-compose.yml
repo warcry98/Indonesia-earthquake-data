@@ -24,11 +24,32 @@ services:
       - 0.0.0.0:33145
       - --advertise-rpc-addr
       - redpanda:33145
+      - --set
+      - redpanda.enable_sasl=true
+      - --set
+      - redpanda.superusers=["${RP_USER}"]
+    environment:
+      - RP_USER=${RP_USER}
+      - RP_PASSWORD=${RP_PASSWORD}
     ports:
       - 8082:8082
       - 9092:9092
       - 28082:28082
       - 29092:29092
+      - 9644:9644
+  
+  create-user:
+    image: redpandadata/redpanda:v26.1.4
+    depends_on:
+      - redpanda
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        sleep 5;
+        rpk security user create $${RP_USER} -p $${RP_PASSWORD} --mechanism SCRAM-SHA-256 --api-urls redpanda:9644
+    environment:
+      - RP_USER=${RP_USER}
+      - RP_PASSWORD=${RP_PASSWORD}
 
   redpanda-console:
     image: redpandadata/console:v3.7.1
@@ -39,14 +60,19 @@ services:
       - "8080:8080"
     environment:
       KAFKA_BROKERS: redpanda:29092
+      KAFKA_SASL_ENABLED: true
+      KAFKA_SASL_MECHANISM: SCRAM-SHA-256
+      KAFKA_SASL_USERNAME: ${RP_USER}
+      KAFKA_SASL_PASSWORD: ${RP_PASSWORD}
 
   jobmanager:
     build:
       context: .
-      dockerfile: ./Dockerfile.flink
-    image: flink
-    pull_policy: never
+      dockerfile: flink-jobmanager/Dockerfile
     restart: unless-stopped
+    depends_on:
+      - redpanda
+      - timescaledb
     expose:
       - "6123"
     ports:
@@ -55,20 +81,22 @@ services:
       - ./:/opt/flink/usrlib
       - ./src/:/opt/src
       - flink-logs:/opt/flink/log
-    command: jobmanager
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         jobmanager.memory.process.size: 1600m
+    env_file:
+      - .env
     privileged: true
     cap_add:
       - SYS_ADMIN
       - SYS_PTRACE
 
   taskmanager:
-    image: flink
-    pull_policy: never
+    build:
+      context: .
+      dockerfile: flink-taskmanager/Dockerfile
     restart: unless-stopped
     expose:
       - "6121"
@@ -97,10 +125,12 @@ services:
   timescaledb:
     image: timescale/timescaledb:2.26.3-pg18
     restart: on-failure
+    env_file:
+      - .env
     environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=${TIMESCALEDB_DB}
+      - POSTGRES_USER=${TIMESCALEDB_USER}
+      - POSTGRES_PASSWORD=${TIMESCALEDB_PASSWORD}
     ports:
       - "5432:5432"
   
@@ -111,11 +141,11 @@ services:
       - "3000:3000"
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_DBNAME: metabase
-      MB_DB_PORT: 5432
-      MB_DB_USER: metabase_user
-      MB_DB_PASS: your_secure_password
-      MB_DB_HOST: metabase-db
+      MB_DB_DBNAME: ${METABASE_DB}
+      MB_DB_PORT: ${METABASE_DB_PORT}
+      MB_DB_USER: ${METABASE_DB_USER}
+      MB_DB_PASS: ${METABASE_DB_PASSWORD}
+      MB_DB_HOST: ${METABASE_DB_HOST}
     depends_on:
       - metabase-db
     restart: unless-stopped
@@ -124,12 +154,15 @@ services:
     image: postgres:15-alpine
     container_name: metabase-db
     environment:
-      POSTGRES_DB: metabase
-      POSTGRES_USER: metabase_user
-      POSTGRES_PASSWORD: your_secure_password
+      POSTGRES_DB: ${METABASE_DB}
+      POSTGRES_USER: ${METABASE_DB_USER}
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD}
     volumes:
       - metabase_data:/var/lib/postgresql/data
     restart: unless-stopped
+    depends_on:
+      - jobmanager
+      - taskmanager
 
 volumes:
   flink-logs:

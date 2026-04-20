@@ -17,7 +17,7 @@ ADD https://jdbc.postgresql.org/download/postgresql-42.7.3.jar /opt/flink/lib/
 RUN mkdir -p /opt/flink/log && \
     chown -R flink:flink /opt/flink/log
 
-COPY --chown=flink:flink flink-config.yaml /opt/flink/conf/config.yaml
+COPY --chown=flink:flink ../flink-config.yaml /opt/flink/conf/config.yaml
 
 USER flink
 WORKDIR /opt/flink
