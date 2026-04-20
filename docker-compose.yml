@@ -68,6 +68,7 @@ services:
       KAFKA_SASL_MECHANISM: SCRAM-SHA-256
       KAFKA_SASL_USERNAME: ${RP_USER}
       KAFKA_SASL_PASSWORD: ${RP_PASSWORD}
+      SERVER_BASEPATH: /redpanda
     env_file:
       - .env
 
