@@ -2,4 +2,4 @@
 set -e
 
 # Start Flink JobManager
-/docker-entrypoint.sh jobmanager &
+/docker-entrypoint.sh jobmanager
