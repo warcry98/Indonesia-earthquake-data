@@ -31,6 +31,8 @@ services:
     environment:
       - RP_USER=${RP_USER}
       - RP_PASSWORD=${RP_PASSWORD}
+    env_file:
+      - .env
     ports:
       - 8082:8082
       - 9092:9092
@@ -50,6 +52,8 @@ services:
     environment:
       - RP_USER=${RP_USER}
       - RP_PASSWORD=${RP_PASSWORD}
+    env_file:
+      - .env
 
   redpanda-console:
     image: redpandadata/console:v3.7.1
@@ -64,6 +68,8 @@ services:
       KAFKA_SASL_MECHANISM: SCRAM-SHA-256
       KAFKA_SASL_USERNAME: ${RP_USER}
       KAFKA_SASL_PASSWORD: ${RP_PASSWORD}
+    env_file:
+      - .env
 
   jobmanager:
     build:
@@ -116,6 +122,8 @@ services:
         taskmanager.numberOfTaskSlots: 15
         taskmanager.registration.timeout: 5 min
         parallelism.default: 3
+    env_file:
+      - .env
     privileged: true
     cap_add:
       - SYS_ADMIN
@@ -146,6 +154,8 @@ services:
       MB_DB_USER: ${METABASE_DB_USER}
       MB_DB_PASS: ${METABASE_DB_PASSWORD}
       MB_DB_HOST: ${METABASE_DB_HOST}
+    env_file:
+      - .env
     depends_on:
       - metabase-db
     restart: unless-stopped
@@ -157,6 +167,8 @@ services:
       POSTGRES_DB: ${METABASE_DB}
       POSTGRES_USER: ${METABASE_DB_USER}
       POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD}
+    env_file:
+      - .env
     volumes:
       - metabase_data:/var/lib/postgresql/data
     restart: unless-stopped
