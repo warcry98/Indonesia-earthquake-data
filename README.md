@@ -57,12 +57,16 @@ Magnitude Distribution
 ## 🛠 Commands
 
 ``` bash
+make env
 make build
 make up
-make down
-make logs
 ```
 
+OR
+
+```bash
+make all
+```
 ------------------------------------------------------------------------
 
 ## 📦 Database Schema

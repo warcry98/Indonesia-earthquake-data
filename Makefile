@@ -1,7 +1,7 @@
 .PHONY: all build up down clean logs
 
 # Default target
-all: build up
+all: env build up
 
 # Build Maven projects (producer & consumer)
 build-mvn:
@@ -12,8 +12,7 @@ build-mvn:
 build-docker:
 	docker compose build
 
-# Full build (mvn + docker)
-build: build-mvn build-docker
+build: build-docker
 
 # Start services
 up:

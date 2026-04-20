@@ -22,15 +22,15 @@ RUN mkdir -p /opt/flink/log && \
 
 COPY --chown=flink:flink ../flink-config.yaml /opt/flink/conf/config.yaml
 
+# Copy entrypoint
+COPY ../jobmanager-entrypoint.sh /opt/flink/jobmanager-entrypoint.sh
+RUN chmod +x /opt/flink/jobmanager-entrypoint.sh
+
 USER flink
 
 ADD https://jdbc.postgresql.org/download/postgresql-42.7.3.jar /opt/flink/lib/
 
 COPY --from=build /app/src/producer/target/producer-1.0-SNAPSHOT.jar /opt/flink/producer.jar
 COPY --from=build /app/src/consumer/target/consumer-1.0-SNAPSHOT.jar /opt/flink/consumer.jar
-
-# Copy entrypoint
-COPY ../jobmanager-entrypoint.sh /opt/flink/jobmanager-entrypoint.sh
-RUN chmod +x /opt/flink/jobmanager-entrypoint.sh
 
 ENTRYPOINT ["/opt/flink/jobmanager-entrypoint.sh"]
