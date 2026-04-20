@@ -1,6 +1,8 @@
 # 🌏 Indonesia Earthquake Streaming Pipeline
 
 ## 🚀 Overview
+Created to gather Indonesia Earthquake data from BMKG for Earthquake pattern analysis and Seismic analysis.
+
 Tested running in Ubuntu environment
 
 Production-ready real-time data pipeline using: - Apache Flink 2.2.0 -
@@ -10,7 +12,7 @@ Redpanda (Kafka) - TimescaleDB - Nginx - Docker Compose
 
 ## 🧱 Architecture
 
-BMKG API → Producer → Kafka → Flink → TimescaleDB
+BMKG API → Producer (Flink Java) → Kafka → Consumer (Flink Java) → TimescaleDB
 
 ------------------------------------------------------------------------
 
