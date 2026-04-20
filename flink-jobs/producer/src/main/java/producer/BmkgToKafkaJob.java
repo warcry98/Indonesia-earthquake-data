@@ -128,7 +128,7 @@ public class BmkgToKafkaJob {
 
 		Properties props = kafkaAuthProps();
 
-		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+		props.put("bootstrap.servers", bootstrapServers);
 
 		try (AdminClient adminClient = AdminClient.create(props)) {
 
