@@ -7,7 +7,7 @@ MB_URL="http://localhost:3000"
 # 🔐 Admin credentials (Metabase UI login)
 # -----------------------------
 ADMIN_EMAIL="admin@admin.com"
-ADMIN_PASSWORD="admin123"
+ADMIN_PASSWORD="Admin123!Secure"
 
 # -----------------------------
 # 📦 TimescaleDB (data source)
@@ -20,7 +20,6 @@ DB_USER="postgres"
 DB_PASS="postgres"
 
 echo "⏳ Waiting for Metabase..."
-sleep 30
 
 # ---------------------------------------
 # 🚀 STEP 1: INITIAL SETUP
@@ -28,12 +27,12 @@ sleep 30
 
 echo "🔍 Checking setup token..."
 
-SETUP_TOKEN=$(curl -s "$MB_URL/api/session/properties" | jq -r '.setup-token')
+SETUP_TOKEN=$(curl -s "$MB_URL/api/session/properties" | jq -r '."setup-token" // empty')
 
-if [ "$SETUP_TOKEN" != "null" ]; then
+if [ -n "$SETUP_TOKEN" ]; then
   echo "🆕 Running first-time setup..."
 
-  curl -s -X POST "$MB_URL/api/setup" \
+  RESPONSE=$(curl -s -X POST "$MB_URL/api/setup" \
     -H "Content-Type: application/json" \
     -d "{
       \"token\": \"$SETUP_TOKEN\",
@@ -42,6 +41,9 @@ if [ "$SETUP_TOKEN" != "null" ]; then
         \"password\": \"$ADMIN_PASSWORD\",
         \"first_name\": \"Admin\",
         \"last_name\": \"User\"
+      },
+      \"prefs\": {
+        \"site_name\": \"Earthquake Dashboard\"
       },
       \"database\": {
         \"engine\": \"postgres\",
@@ -54,7 +56,15 @@ if [ "$SETUP_TOKEN" != "null" ]; then
           \"password\": \"$DB_PASS\"
         }
       }
-    }"
+    }")
+
+  echo "$RESPONSE"
+
+  # ✅ Check if setup succeeded
+  if echo "$RESPONSE" | jq -e '.errors or ."specific-errors"' > /dev/null; then
+    echo "❌ Setup failed!"
+    exit 1
+  fi
 
   echo "✅ Metabase initialized!"
 else
