@@ -24,11 +24,13 @@ Access in local deployment:
 - Flink: http://localhost:8081
 - Redpanda: http://localhost:8080
 - PgAdmin: http://localhost:5050
+Follow authentication in .env
 
 Access in cloud deployment
-- Flink: http://localhost:8085/flink/
-- Redpanda: http://localhost:8085/redpanda/
-- PgAdmin: http://localhost:8085/pgadmin/
+- Flink: http://18.233.190.224:8085/flink/
+- Redpanda: http://18.233.190.224:8085/redpanda/
+- PgAdmin: http://18.233.190.224:8085/pgadmin/
+Use username = admin and password = admin123 to access
 
 ------------------------------------------------------------------------
 
