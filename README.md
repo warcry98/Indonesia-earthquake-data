@@ -4,14 +4,13 @@
 Tested running in Ubuntu environment
 
 Production-ready real-time data pipeline using: - Apache Flink 2.2.0 -
-Redpanda (Kafka) - TimescaleDB - Metabase (auto dashboards) - Nginx
-(TLS + OAuth) - Docker Compose
+Redpanda (Kafka) - TimescaleDB - Nginx - Docker Compose
 
 ------------------------------------------------------------------------
 
 ## 🧱 Architecture
 
-BMKG API → Producer → Kafka → Flink → TimescaleDB → Metabase (via Nginx)
+BMKG API → Producer → Kafka → Flink → TimescaleDB
 
 ------------------------------------------------------------------------
 
@@ -21,25 +20,15 @@ BMKG API → Producer → Kafka → Flink → TimescaleDB → Metabase (via Ngin
 make
 ```
 
-Access: 
-- https://localhost:8443/flink/ 
-- https://localhost:8443/metabase/
+Access in local deployment: 
+- Flink: http://localhost:8081
+- Redpanda: http://localhost:8080
+- PgAdmin: http://localhost:5050
 
-------------------------------------------------------------------------
-
-## 🔐 Security
-
--   Google OAuth (oauth2-proxy)
--   Self-signed TLS (HTTPS)
--   Rate limiting
--   Security headers
-
-------------------------------------------------------------------------
-
-## 📊 Dashboards
-
-Auto-created: - 🌍 Earthquake Map - 📈 Magnitude Over Time - 📊
-Magnitude Distribution
+Access in cloud deployment
+- Flink: http://localhost:8085/flink/
+- Redpanda: http://localhost:8085/redpanda/
+- PgAdmin: http://localhost:8085/pgadmin/
 
 ------------------------------------------------------------------------
 
@@ -48,9 +37,7 @@ Magnitude Distribution
 -   Flink JobManager & TaskManager
 -   Redpanda
 -   TimescaleDB
--   Metabase
 -   Nginx
--   OAuth2 Proxy
 
 ------------------------------------------------------------------------
 
@@ -72,8 +59,8 @@ make all
 ## 📦 Database Schema
 
 ``` sql
-CREATE TABLE earthquakes (
-    time TIMESTAMPTZ,
+CREATE TABLE IF NOT EXISTS earthquakes (
+    time timestamp with time zone,
     magnitude DOUBLE PRECISION,
     depth TEXT,
     lat DOUBLE PRECISION,
@@ -81,11 +68,16 @@ CREATE TABLE earthquakes (
     region TEXT,
     PRIMARY KEY (time, magnitude, lat, lon)
 );
+
+SELECT create_hypertable('earthquakes', 'time', if_not_exists => TRUE);
+
+DO $$
+    BEGIN
+        PERFORM add_retention_policy('earthquakes', interval '6 months');
+    EXCEPTION
+        WHEN others THEN
+            NULL;
+    END $$;
 ```
 
 ------------------------------------------------------------------------
-
-## 🔧 Notes
-
--   Accept browser warning for self-signed cert
--   Ensure OAuth redirect URI matches config
