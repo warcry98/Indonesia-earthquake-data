@@ -41,6 +41,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
+import java.util.Properties;
 
 /**
  * Skeleton for a Flink DataStream Job.
@@ -58,7 +59,8 @@ public class KafkaToTimescaleJob {
 	final static String kafkaTopic = "bmkg-raw";
 
 	public static void main(String[] args) throws Exception {
-		final String bootstrapServers = args.length > 0 ? args[0] : "redpanda:29092";
+		final String bootstrapServers = System.getenv().getOrDefault("RP_BOOTSTRAP_SERVERS", "redpanda:29092");
+
 
 		initDatabase();
 		// Sets up the execution environment, which is the main entry point
@@ -67,12 +69,15 @@ public class KafkaToTimescaleJob {
 
 		env.enableCheckpointing(1000);
 
+		Properties props = kafkaAuthProps();
+
 		KafkaSource<String> source = KafkaSource.<String>builder()
 				.setBootstrapServers(bootstrapServers)
 				.setTopics(kafkaTopic)
 				.setGroupId("bmkg-group-v2")
 				.setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
 				.setValueOnlyDeserializer(new SimpleStringSchema())
+				.setProperties(props)
 				.build();
 
 		DataStream<String> stream = env.fromSource(
@@ -163,10 +168,14 @@ public class KafkaToTimescaleJob {
 		// Load driver explicitly
 		Class.forName("org.postgresql.Driver");
 
+		String url = System.getenv("JDBC_URL");
+		String user = System.getenv("TIMESCALEDB_USER");
+		String pass = System.getenv("TIMESCALEDB_PASSWORD");
+
 		try (Connection conn = DriverManager.getConnection(
-				"jdbc:postgresql://timescaledb:5432/postgres",
-				"postgres",
-				"postgres"
+				url,
+				user,
+				pass
 		);
 			 Statement stmt = conn.createStatement()) {
 
@@ -201,4 +210,22 @@ public class KafkaToTimescaleJob {
             throw new RuntimeException("DB init failed", e);
         }
     }
+
+	private static Properties kafkaAuthProps() {
+		Properties props = new Properties();
+
+		String username = System.getenv("RP_USER");
+		String password = System.getenv("RP_PASSWORD");
+
+		props.put("security.protocol", "SASL_PLAINTEXT");
+		props.put("sasl.mechanism", "SCRAM-SHA-256");
+
+		props.put(
+				"sasl.jaas.config",
+				"org.apache.kafka.common.security.scram.ScramLoginModule required " +
+						"username=\"" + username + "\" password=\"" + password + "\";"
+		);
+
+		return props;
+	}
 }

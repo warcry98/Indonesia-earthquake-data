@@ -55,7 +55,7 @@ public class BmkgToKafkaJob {
 
 	public static void main(String[] args) throws Exception {
 
-		final String bootstrapServers = args.length > 0 ? args[0] : "redpanda:29092";
+		final String bootstrapServers = System.getenv().getOrDefault("RP_BOOTSTRAP_SERVERS", "redpanda:29092");
 
 		// Ensure topic exists
 		createTopicIfNotExists(bootstrapServers, kafkaTopic, 1, (short) 1);
@@ -100,11 +100,11 @@ public class BmkgToKafkaJob {
 				.keyBy(BmkgToKafkaJob::extractKey)
 				.process(new DeduplicationFunction());
 
-		Properties properties = kafkaProperties();
+		Properties props = kafkaAuthProps();
 
 		KafkaSink<String> sink = KafkaSink.<String>builder()
 				.setBootstrapServers(bootstrapServers)
-				.setKafkaProducerConfig(kafkaProperties())
+				.setKafkaProducerConfig(props)
 				.setRecordSerializer(
 						KafkaRecordSerializationSchema.builder()
 								.setTopic(kafkaTopic)
@@ -126,7 +126,9 @@ public class BmkgToKafkaJob {
 			short replicationFactor
 	) throws ExecutionException, InterruptedException {
 
-		Properties props = kafkaProperties();
+		Properties props = kafkaAuthProps();
+
+		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
 		try (AdminClient adminClient = AdminClient.create(props)) {
 
@@ -159,18 +161,21 @@ public class BmkgToKafkaJob {
 		return tanggal + "_" + jam + "_" + lat + "_" + lon;
 	}
 
-	private static Properties kafkaProperties() {
-		Properties properties = new Properties();
-		properties.setProperty("bootstrap.server", "redpanda:29092");
+	private static Properties kafkaAuthProps() {
+		Properties props = new Properties();
 
-		properties.setProperty("security.protocol", "SASL_SSL");
-		properties.setProperty("sasl.mechanism", "SCRAM-SHA-256");
+		String username = System.getenv("RP_USER");
+		String password = System.getenv("RP_PASSWORD");
 
-		String jaasConfig = "org.apache.kafka.common.security.scram.ScramLoginModule required " +
-				"username=\"admin\" " +
-				"password=\"secret\";";
-		properties.setProperty("sasl.jaas.config", jaasConfig);
+		props.put("security.protocol", "SASL_PLAINTEXT");
+		props.put("sasl.mechanism", "SCRAM-SHA-256");
 
-		return properties;
+		props.put(
+				"sasl.jaas.config",
+				"org.apache.kafka.common.security.scram.ScramLoginModule required " +
+						"username=\"" + username + "\" password=\"" + password + "\";"
+		);
+
+		return props;
 	}
 }
